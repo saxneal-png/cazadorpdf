@@ -1,0 +1,41 @@
+name: Cazador de PDF Autónomo
+
+on:
+  schedule:
+    # Se ejecuta todos los días a las 06:00 UTC (02:00 AM hora de Chile)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      keywords:
+        description: 'Palabras clave de búsqueda (ej. cultivo trigo)'
+        required: true
+        default: 'cultivo maiz'
+      limit:
+        description: 'Límite máximo de descargas'
+        required: false
+        default: '5'
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout de código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Ejecutar Rastreador y Subida
+        env:
+          REPO_URL: 'https://biblioteca.inia.cl'
+          KEYWORDS: ${{ github.event.inputs.keywords || 'cultivo maiz' }}
+          LIMIT: ${{ github.event.inputs.limit || '5' }}
+          SHEETS_WEBHOOK_URL: ${{ secrets.SHEETS_WEBHOOK_URL }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: node cli-hunter.js

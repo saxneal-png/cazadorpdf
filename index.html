@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cazador de PDF - DSpace Crawler</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="glow-container">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+  </div>
+
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="icon">🛰️</span>
+        <h1>Cazador de <span class="accent-text">PDF</span></h1>
+      </div>
+      <p class="subtitle">Buscador y descargador automatizado para repositorios DSpace</p>
+    </header>
+
+    <main class="dashboard-grid">
+      <!-- PANEL DE CONTROL -->
+      <section class="panel glass-panel control-panel">
+        <div class="tabs-header">
+          <button type="button" class="tab-btn active" id="tab-btn-manual">⚡ Manual</button>
+          <button type="button" class="tab-btn" id="tab-btn-regional">📅 Región / Programación</button>
+        </div>
+
+        <!-- TAB MANUAL -->
+        <div id="tab-manual" class="tab-content">
+          <form id="hunt-form" onsubmit="event.preventDefault();">
+            <div class="input-group">
+              <label for="repoUrl">URL del Repositorio DSpace</label>
+              <input type="url" id="repoUrl" value="https://biblioteca.inia.cl" required placeholder="https://ejemplo.cl">
+              <small class="helper-text">Base del repositorio (por ejemplo, Biblioteca INIA)</small>
+            </div>
+
+            <div class="input-group">
+              <label for="keywords">Palabras Clave</label>
+              <input type="text" id="keywords" required placeholder="Ej. Cultivo de papas, Agroquimicos">
+            </div>
+
+            <div class="input-row">
+              <div class="input-group">
+                <label for="folderPath">Ruta Carpeta Destino</label>
+                <input type="text" id="folderPath" required placeholder="C:\CazadorDescargas">
+              </div>
+              <div class="input-group limit-group">
+                <label for="limit">Límite</label>
+                <input type="number" id="limit" value="5" min="1" max="100" required>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="sheetsWebhookUrl">URL Web App Google Sheets (Opcional)</label>
+              <input type="url" id="sheetsWebhookUrl" placeholder="https://script.google.com/macros/s/.../exec">
+              <small class="helper-text">Webhook de Apps Script para registrar descargas en la hoja "cultivos"</small>
+            </div>
+
+            <div class="input-group">
+              <label for="driveFolderId">ID de Carpeta Google Drive (Opcional)</label>
+              <input type="text" id="driveFolderId" placeholder="1cJu_a1m3BJvl16zgR8U1UJpGZg4D4d24">
+              <small class="helper-text">ID de la carpeta destino de Google Drive para subir los archivos automáticamente</small>
+            </div>
+
+            <div class="button-group">
+              <button type="submit" id="btn-hunt" class="btn btn-primary">
+                <span class="btn-icon">⚡</span> Iniciar Caza
+              </button>
+              <button type="button" id="btn-stop" class="btn btn-danger" disabled>
+                <span class="btn-icon">⏹️</span> Detener
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB REGIONAL -->
+        <div id="tab-regional" class="tab-content" style="display: none;">
+          <form id="schedule-form" onsubmit="event.preventDefault();">
+            <div class="input-group">
+              <label for="scheduleRegion">Selecciona Región de Chile</label>
+              <select id="scheduleRegion" class="custom-select">
+                <option value="Arica y Parinacota">Región de Arica y Parinacota</option>
+                <option value="Tarapacá">Región de Tarapacá</option>
+                <option value="Antofagasta">Región de Antofagasta</option>
+                <option value="Atacama">Región de Atacama</option>
+                <option value="Coquimbo">Región de Coquimbo</option>
+                <option value="Valparaíso">Región de Valparaíso</option>
+                <option value="Metropolitana" selected>Región Metropolitana</option>
+                <option value="O'Higgins">Región de O'Higgins</option>
+                <option value="Maule">Región del Maule</option>
+                <option value="Ñuble">Región de Ñuble</option>
+                <option value="Biobío">Región del Biobío</option>
+                <option value="La Araucanía">Región de La Araucanía</option>
+                <option value="Los Ríos">Región de Los Ríos</option>
+                <option value="Los Lagos">Región de Los Lagos</option>
+                <option value="Aysén">Región de Aysén</option>
+                <option value="Magallanes">Región de Magallanes</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label>Cultivos Detectados para la Región</label>
+              <div id="region-crops-list" class="crops-checkbox-list">
+                <!-- Javascript will populate checkboxes -->
+              </div>
+            </div>
+
+            <div class="input-row">
+              <div class="input-group">
+                <label for="scheduleFrequency">Frecuencia de Ejecución</label>
+                <select id="scheduleFrequency" class="custom-select">
+                  <option value="0">Solo una vez (Ahora)</option>
+                  <option value="1">Cada 1 Hora</option>
+                  <option value="12">Cada 12 Horas</option>
+                  <option value="24">Cada 24 Horas</option>
+                </select>
+              </div>
+              <div class="input-group limit-group">
+                <label for="scheduleLimit">Límite / Cultivo</label>
+                <input type="number" id="scheduleLimit" value="5" min="1" max="50">
+              </div>
+            </div>
+
+            <div class="button-group">
+              <button type="submit" id="btn-schedule" class="btn btn-primary">
+                <span class="btn-icon">📅</span> Guardar y Activar Programación
+              </button>
+            </div>
+          </form>
+
+          <!-- ACTIVE SCHEDULES LIST -->
+          <div class="active-schedules-container">
+            <h3>Programas Activos</h3>
+            <div id="active-schedules-list">
+              <p class="empty-schedules-msg">No hay programaciones periódicas activas.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL DE ESTADO Y ESTADÍSTICAS -->
+      <section class="panel glass-panel status-panel">
+        <h2>Panel de Estado</h2>
+        <div class="status-summary">
+          <div class="state-indicator">
+            <span class="indicator-dot idle" id="indicator-dot"></span>
+            <span id="state-text" class="state-text">IDLE</span>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Descargados</span>
+            <span class="stat-value" id="stat-downloaded">0 / 0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Encontrados</span>
+            <span class="stat-value" id="stat-found">0</span>
+          </div>
+        </div>
+
+        <!-- PROGRESS BAR -->
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%"></div>
+        </div>
+      </section>
+
+      <!-- CONSOLA EN VIVO -->
+      <section class="panel glass-panel terminal-panel">
+        <h2>Registro de Actividad (Consola)</h2>
+        <div class="terminal-container" id="terminal-logs">
+          <div class="system-line">[SISTEMA] Cazador listo para iniciar. Ingrese los parámetros y presione "Iniciar Caza".</div>
+        </div>
+      </section>
+
+      <!-- CARD RESULTADOS -->
+      <section class="panel glass-panel results-panel">
+        <h2>Archivos Cazados con Éxito</h2>
+        <div class="results-grid" id="results-grid">
+          <div class="no-results" id="no-results-msg">
+            <span class="empty-icon">📂</span>
+            <p>Aún no hay archivos descargados en esta sesión.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+node_modules/
+temp_downloads/
+CazadorDescargas/
+.DS_Store
+.env
