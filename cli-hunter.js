@@ -18,6 +18,7 @@ async function runCLI() {
   const limit = parseInt(process.env.LIMIT) || 5;
   const sheetsWebhookUrl = process.env.SHEETS_WEBHOOK_URL;
   const driveFolderId = process.env.DRIVE_FOLDER_ID;
+  const sheetName = process.env.SHEET_NAME || 'Cultivo';
 
   if (!keywords) {
     log('❌ ERROR: Debe especificar la variable de entorno KEYWORDS (ej. "cultivo papa").');
@@ -28,6 +29,7 @@ async function runCLI() {
   log(`📍 Repositorio: ${repoUrl}`);
   log(`🔑 Palabras clave: ${keywords}`);
   log(`🔢 Límite: ${limit}`);
+  log(`📊 Pestaña destino: ${sheetName}`);
   if (sheetsWebhookUrl) log(`📊 Registro Sheets Webhook: Activo`);
   if (driveFolderId) log(`☁️ Carpeta Google Drive ID: ${driveFolderId}`);
 
@@ -209,7 +211,9 @@ async function runCLI() {
                     estado: "PENDIENTE_ANALISIS",
                     localPath: finalPath,
                     fileBase64: base64Str,
-                    driveFolderId: driveFolderId
+                    driveFolderId: driveFolderId,
+                    nombreHoja: sheetName,
+                    hojaDestino: sheetName
                   })
                 });
 

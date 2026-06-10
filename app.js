@@ -19,17 +19,56 @@ let lastDownloadedCount = 0;
 // Set default downloads folder based on typical Windows structure if possible
 document.getElementById('folderPath').value = "C:\\Users\\DionicioFelipeFlores\\Downloads\\CazadorDescargas";
 document.getElementById('sheetsWebhookUrl').value = "https://script.google.com/macros/s/AKfycbxeXWq7oBNhXLW2NfypoJzpA8m9OB585401f-htF_uZHxEMTf4ZU_E43BTCNZbtJg_RHA/exec";
-document.getElementById('driveFolderId').value = "1cJu_a1m3BJvl16zgR8U1UJpGZg4D4d24";
+document.getElementById('driveFolderId').value = "1hYRp8ecYXLBGXTp4ooK7iNUK2fnGAAhv";
+
+const searchSourceSelect = document.getElementById('searchSource');
+const sortOrderSelect = document.getElementById('sortOrder');
+const repoUrlInput = document.getElementById('repoUrl');
+const repoUrlContainer = document.getElementById('repoUrl-container');
+const sheetNameInput = document.getElementById('sheetName');
+
+// Handle UI reactivity when changing search source
+const sagScanConfigDiv = document.getElementById('sag-scan-config');
+const scanModeSelect = document.getElementById('scanMode');
+const pageRangeGroup = document.querySelector('.page-range-group');
+
+searchSourceSelect.addEventListener('change', () => {
+  if (searchSourceSelect.value === 'sag') {
+    sheetNameInput.value = 'Agroquimicos';
+    repoUrlInput.value = 'https://www.sag.gob.cl';
+    sagScanConfigDiv.style.display = 'flex';
+  } else {
+    sheetNameInput.value = 'Cultivo';
+    repoUrlInput.value = 'https://biblioteca.inia.cl';
+    sagScanConfigDiv.style.display = 'none';
+  }
+});
+
+scanModeSelect.addEventListener('change', () => {
+  if (scanModeSelect.value === 'sequential' || scanModeSelect.value === 'random') {
+    pageRangeGroup.style.display = 'block';
+  } else {
+    pageRangeGroup.style.display = 'none';
+  }
+});
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const repoUrl = document.getElementById('repoUrl').value;
+  const searchSource = searchSourceSelect.value;
+  const sortOrder = sortOrderSelect.value;
+  const repoUrl = repoUrlInput.value;
   const keywords = document.getElementById('keywords').value;
   const folderPath = document.getElementById('folderPath').value;
   const limit = document.getElementById('limit').value;
   const sheetsWebhookUrl = document.getElementById('sheetsWebhookUrl').value;
   const driveFolderId = document.getElementById('driveFolderId').value;
+  const sheetName = sheetNameInput.value;
+
+  const ingestionMode = document.getElementById('ingestionMode').value;
+  const scanMode = scanModeSelect.value;
+  const startPage = document.getElementById('startPage').value;
+  const endPage = document.getElementById('endPage').value;
 
   // Disable Hunt, Enable Stop
   btnHunt.disabled = true;
@@ -45,7 +84,21 @@ form.addEventListener('submit', async (e) => {
     const response = await fetch('/api/hunt', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repoUrl, keywords, folderPath, limit, sheetsWebhookUrl, driveFolderId })
+      body: JSON.stringify({ 
+        searchSource, 
+        sortOrder, 
+        repoUrl, 
+        keywords, 
+        folderPath, 
+        limit, 
+        sheetsWebhookUrl, 
+        driveFolderId, 
+        sheetName,
+        ingestionMode,
+        scanMode,
+        startPage,
+        endPage
+      })
     });
 
     const data = await response.json();
@@ -75,6 +128,123 @@ btnStop.addEventListener('click', async () => {
     addLocalLog(`🚨 Error de conexión al detener.`, 'error');
   }
 });
+
+// --- DIAGNOSTIC AND DATABASE QUERY INTERFACE ---
+const btnTestDb = document.getElementById('btn-test-db');
+const btnSearchDb = document.getElementById('btn-search-db');
+const dbStatusBadge = document.getElementById('db-status-badge');
+const dbSearchInput = document.getElementById('db-search-input');
+const dbResultsContainer = document.getElementById('db-results-container');
+
+btnTestDb.addEventListener('click', async () => {
+  const sheetsWebhookUrl = document.getElementById('sheetsWebhookUrl').value;
+  if (!sheetsWebhookUrl) {
+    alert('Por favor ingrese la URL del Webhook de Sheets.');
+    return;
+  }
+  
+  btnTestDb.disabled = true;
+  dbStatusBadge.textContent = 'Verificando...';
+  dbStatusBadge.className = 'db-status-badge idle';
+  dbResultsContainer.innerHTML = '<p class="db-helper-text">Estableciendo conexión con Google Sheets...</p>';
+  
+  try {
+    const response = await fetch('/api/test-connection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetsWebhookUrl })
+    });
+    const data = await response.json();
+    if (data.success) {
+      dbStatusBadge.textContent = 'CONECTADO ✅';
+      dbStatusBadge.className = 'db-status-badge success';
+      dbResultsContainer.innerHTML = `
+        <div style="color: var(--accent-green); margin-bottom: 0.5rem; font-weight: 600;">
+          ¡Conexión Exitosa con Google Sheets!
+        </div>
+        <p>Se encontraron <strong>${data.totalRecords}</strong> registros almacenados en total.</p>
+        <p>La base de datos está activa y lista para la deduplicación.</p>
+      `;
+    } else {
+      dbStatusBadge.textContent = 'ERROR ❌';
+      dbStatusBadge.className = 'db-status-badge error';
+      dbResultsContainer.innerHTML = `
+        <div style="color: var(--accent-red); margin-bottom: 0.5rem; font-weight: 600;">
+          Error al conectar:
+        </div>
+        <p>${data.error || 'Error desconocido'}</p>
+      `;
+    }
+  } catch (err) {
+    dbStatusBadge.textContent = 'ERROR ❌';
+    dbStatusBadge.className = 'db-status-badge error';
+    dbResultsContainer.innerHTML = `<p style="color: var(--accent-red)">Error de red local: ${err.message}</p>`;
+  } finally {
+    btnTestDb.disabled = false;
+  }
+});
+
+btnSearchDb.addEventListener('click', async () => {
+  const sheetsWebhookUrl = document.getElementById('sheetsWebhookUrl').value;
+  const query = dbSearchInput.value.trim();
+  
+  if (!sheetsWebhookUrl) {
+    alert('Por favor ingrese la URL del Webhook de Sheets.');
+    return;
+  }
+  if (!query) {
+    alert('Por favor ingrese un término de búsqueda para consultar.');
+    return;
+  }
+  
+  btnSearchDb.disabled = true;
+  dbResultsContainer.innerHTML = '<p class="db-helper-text">Buscando coincidencias en Google Sheets...</p>';
+  
+  try {
+    const response = await fetch('/api/test-connection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetsWebhookUrl, query })
+    });
+    const data = await response.json();
+    if (data.success) {
+      if (data.matches && data.matches.length > 0) {
+        dbResultsContainer.innerHTML = `
+          <div style="margin-bottom: 0.5rem; font-weight: 600; color: var(--accent-cyan);">
+            Se encontraron ${data.matches.length} coincidencias en la base de datos:
+          </div>
+        `;
+        data.matches.forEach(match => {
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'db-match-item';
+          
+          const isAgrochemical = match.toLowerCase().includes('sag.gob.cl') || match.toLowerCase().includes('etiqueta') || match.toLowerCase().includes('hds');
+          const typeClass = isAgrochemical ? 'agrochemicals' : 'cultivos';
+          const typeLabel = isAgrochemical ? '🧪 Agroquímico' : '🌾 Cultivo';
+          
+          itemDiv.innerHTML = `
+            <a href="${match}" target="_blank" class="db-match-link" title="${match}">${match}</a>
+            <span class="db-match-type ${typeClass}">${typeLabel}</span>
+          `;
+          dbResultsContainer.appendChild(itemDiv);
+        });
+      } else {
+        dbResultsContainer.innerHTML = `
+          <p style="color: var(--text-muted); text-align: center; margin: 1rem 0;">
+            No se encontraron registros que coincidan con "${query}". El archivo está libre para descarga.
+          </p>
+        `;
+      }
+    } else {
+      dbResultsContainer.innerHTML = `<p style="color: var(--accent-red)">Error al consultar base de datos: ${data.error}</p>`;
+    }
+  } catch (err) {
+    dbResultsContainer.innerHTML = `<p style="color: var(--accent-red)">Error de red al consultar: ${err.message}</p>`;
+  } finally {
+    btnSearchDb.disabled = false;
+  }
+});
+
 
 function startPolling() {
   if (pollingInterval) clearInterval(pollingInterval);

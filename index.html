@@ -35,15 +35,63 @@
         <!-- TAB MANUAL -->
         <div id="tab-manual" class="tab-content">
           <form id="hunt-form" onsubmit="event.preventDefault();">
-            <div class="input-group">
-              <label for="repoUrl">URL del Repositorio DSpace</label>
-              <input type="url" id="repoUrl" value="https://biblioteca.inia.cl" required placeholder="https://ejemplo.cl">
-              <small class="helper-text">Base del repositorio (por ejemplo, Biblioteca INIA)</small>
+            <div class="input-row">
+              <div class="input-group">
+                <label for="searchSource">Fuente de Búsqueda</label>
+                <select id="searchSource" class="custom-select">
+                  <option value="inia" selected>INIA (DSpace API)</option>
+                  <option value="sag">SAG (Agroquímicos - Scraper)</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label for="sortOrder">Orden de Búsqueda</label>
+                <select id="sortOrder" class="custom-select">
+                  <option value="rel" selected>Más relevantes</option>
+                  <option value="new">Más nuevos primero</option>
+                  <option value="old">Más antiguos primero</option>
+                </select>
+              </div>
             </div>
 
-            <div class="input-group">
-              <label for="keywords">Palabras Clave</label>
-              <input type="text" id="keywords" required placeholder="Ej. Cultivo de papas, Agroquimicos">
+            <div class="input-group" id="repoUrl-container">
+              <label for="repoUrl">URL del Repositorio / Sitio Web</label>
+              <input type="url" id="repoUrl" value="https://biblioteca.inia.cl" required placeholder="https://ejemplo.cl">
+              <small class="helper-text">Base del repositorio o sitio web (por ejemplo, Biblioteca INIA o SAG)</small>
+            </div>
+
+            <div class="input-row">
+              <div class="input-group">
+                <label for="keywords">Palabras Clave / Término de Búsqueda</label>
+                <input type="text" id="keywords" placeholder="Ej. Cultivo de papas, Agroquimicos">
+              </div>
+              <div class="input-group">
+                <label for="ingestionMode">Destino de Ingesta</label>
+                <select id="ingestionMode" class="custom-select">
+                  <option value="auto" selected>Automático (Clasificar según origen/título)</option>
+                  <option value="cultivos">🌾 Forzar a Cultivos (Drive + Sheet)</option>
+                  <option value="agrochemicals">🧪 Forzar a Agroquímicos (Drive + Sheet)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- SAG SCAN CONFIG (Dynamically shown/hidden) -->
+            <div class="input-row" id="sag-scan-config" style="display: none;">
+              <div class="input-group">
+                <label for="scanMode">Método de Búsqueda SAG</label>
+                <select id="scanMode" class="custom-select">
+                  <option value="keyword" selected>Por Palabras Clave</option>
+                  <option value="sequential">Escaneo Secuencial por Páginas</option>
+                  <option value="random">Escaneo Aleatorio por Páginas</option>
+                </select>
+              </div>
+              <div class="input-group page-range-group" style="display: none;">
+                <label>Rango de Páginas (Inicio - Fin)</label>
+                <div class="range-inputs">
+                  <input type="number" id="startPage" value="0" min="0" max="200" placeholder="Desde">
+                  <span class="range-separator">-</span>
+                  <input type="number" id="endPage" value="5" min="0" max="200" placeholder="Hasta">
+                </div>
+              </div>
             </div>
 
             <div class="input-row">
@@ -57,16 +105,23 @@
               </div>
             </div>
 
-            <div class="input-group">
-              <label for="sheetsWebhookUrl">URL Web App Google Sheets (Opcional)</label>
-              <input type="url" id="sheetsWebhookUrl" placeholder="https://script.google.com/macros/s/.../exec">
-              <small class="helper-text">Webhook de Apps Script para registrar descargas en la hoja "cultivos"</small>
+            <div class="input-row">
+              <div class="input-group">
+                <label for="sheetName">Nombre de Hoja de Cálculo</label>
+                <input type="text" id="sheetName" value="Cultivo" required placeholder="Ej. Cultivo">
+                <small class="helper-text">Nombre de la pestaña/hoja destino</small>
+              </div>
+              <div class="input-group">
+                <label for="driveFolderId">ID de Carpeta Google Drive (Opcional)</label>
+                <input type="text" id="driveFolderId" placeholder="1hYRp8ecYXLBGXTp4ooK7iNUK2fnGAAhv">
+                <small class="helper-text">ID destino para subir automáticamente</small>
+              </div>
             </div>
 
             <div class="input-group">
-              <label for="driveFolderId">ID de Carpeta Google Drive (Opcional)</label>
-              <input type="text" id="driveFolderId" placeholder="1cJu_a1m3BJvl16zgR8U1UJpGZg4D4d24">
-              <small class="helper-text">ID de la carpeta destino de Google Drive para subir los archivos automáticamente</small>
+              <label for="sheetsWebhookUrl">URL Web App Google Sheets (Opcional)</label>
+              <input type="url" id="sheetsWebhookUrl" placeholder="https://script.google.com/macros/s/.../exec">
+              <small class="helper-text">Webhook de Apps Script para registrar descargas en la hoja</small>
             </div>
 
             <div class="button-group">
@@ -177,6 +232,28 @@
         <h2>Registro de Actividad (Consola)</h2>
         <div class="terminal-container" id="terminal-logs">
           <div class="system-line">[SISTEMA] Cazador listo para iniciar. Ingrese los parámetros y presione "Iniciar Caza".</div>
+        </div>
+      </section>
+
+      <!-- PANEL DE DIAGNÓSTICO Y CONSULTA DE BASE DE DATOS -->
+      <section class="panel glass-panel diagnostic-panel">
+        <h2>🛠️ Diagnóstico y Consulta de DB</h2>
+        
+        <div class="db-test-row">
+          <button type="button" id="btn-test-db" class="btn btn-secondary">⚡ Probar Conexión de DB</button>
+          <div id="db-status-badge" class="db-status-badge idle">Sin Verificar</div>
+        </div>
+
+        <div class="db-search-box">
+          <label for="db-search-input">Consultar Registro en Base de Datos (Google Sheets):</label>
+          <div class="search-input-group">
+            <input type="text" id="db-search-input" placeholder="Ej: Aviator, Abamectina, 20.500...">
+            <button type="button" id="btn-search-db" class="btn btn-primary">🔍 Consultar</button>
+          </div>
+        </div>
+
+        <div class="db-results-container" id="db-results-container">
+          <p class="db-helper-text">Los resultados de la base de datos aparecerán aquí al consultar o diagnosticar.</p>
         </div>
       </section>
 
